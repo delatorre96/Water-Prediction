@@ -1,0 +1,3 @@
+Delimitador que separa los campos: Punto y coma
+Primera fila contiene nombre de campos
+Cualificador de texto: "
