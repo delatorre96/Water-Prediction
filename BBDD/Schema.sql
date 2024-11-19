@@ -5,12 +5,6 @@ CREATE TABLE `df_pixeles_cercanos` (
   `location_id_rios_canales` float64
 );
 
-CREATE TABLE `df_copernicus_id` (
-  `latitude` float64,
-  `longitude` float64,
-  `location_id` int64
-);
-
 CREATE TABLE `df_copernicus` (
   `total_precipitation` float64,
   `skin_temperature` float64,
@@ -33,12 +27,6 @@ CREATE TABLE `df_embalses` (
   `quantity_hm3` float64,
   `location_id` int64,
   `date_id` int64
-);
-
-CREATE TABLE `df_embalses_id` (
-  `longitude` float64,
-  `latitude` float64,
-  `location_id` int64
 );
 
 CREATE TABLE `df_embalses_info` (
@@ -64,12 +52,6 @@ CREATE TABLE `df_rios_canales` (
   `quantity_hm3` float64,
   `location_id` int64,
   `date_id` int64
-);
-
-CREATE TABLE `df_rios_canales_id` (
-  `latitude` float64,
-  `longitude` float64,
-  `location_id` int64
 );
 
 CREATE TABLE `df_rios_canales_info` (
@@ -103,12 +85,6 @@ CREATE TABLE `df_aemet` (
   `date_id` int64
 );
 
-CREATE TABLE `df_aemet_id` (
-  `latitude` float64,
-  `longitude` float64,
-  `location_id` int64
-);
-
 CREATE TABLE `df_aemet_info` (
   `provincia` object,
   `altitud` int64,
@@ -138,22 +114,6 @@ ALTER TABLE `df_date` ADD FOREIGN KEY (`date_id`) REFERENCES `df_rios_canales` (
 
 ALTER TABLE `df_date` ADD FOREIGN KEY (`date_id`) REFERENCES `df_embalses` (`date_id`);
 
-ALTER TABLE `locations_id` ADD FOREIGN KEY (`location_id`) REFERENCES `df_copernicus_id` (`location_id`);
-
-ALTER TABLE `locations_id` ADD FOREIGN KEY (`location_id`) REFERENCES `df_rios_canales_id` (`location_id`);
-
-ALTER TABLE `locations_id` ADD FOREIGN KEY (`location_id`) REFERENCES `df_embalses_id` (`location_id`);
-
-ALTER TABLE `locations_id` ADD FOREIGN KEY (`location_id`) REFERENCES `df_aemet_id` (`location_id`);
-
-ALTER TABLE `df_copernicus` ADD FOREIGN KEY (`location_id`) REFERENCES `locations_id` (`location_id`);
-
-ALTER TABLE `df_rios_canales` ADD FOREIGN KEY (`location_id`) REFERENCES `locations_id` (`location_id`);
-
-ALTER TABLE `df_embalses` ADD FOREIGN KEY (`location_id`) REFERENCES `locations_id` (`location_id`);
-
-ALTER TABLE `df_aemet` ADD FOREIGN KEY (`location_id`) REFERENCES `locations_id` (`location_id`);
-
 ALTER TABLE `df_pixeles_cercanos` ADD FOREIGN KEY (`location_id_copernicus`) REFERENCES `locations_id` (`location_id`);
 
 ALTER TABLE `df_pixeles_cercanos` ADD FOREIGN KEY (`location_id_rios_canales`) REFERENCES `locations_id` (`location_id`);
@@ -162,8 +122,16 @@ ALTER TABLE `df_pixeles_cercanos` ADD FOREIGN KEY (`location_id_embalses`) REFER
 
 ALTER TABLE `df_pixeles_cercanos` ADD FOREIGN KEY (`location_id_aemet`) REFERENCES `locations_id` (`location_id`);
 
-ALTER TABLE `df_rios_canales_info` ADD FOREIGN KEY (`location_id`) REFERENCES `df_rios_canales` (`location_id`);
+ALTER TABLE `df_pixeles_cercanos` ADD FOREIGN KEY (`location_id_copernicus`) REFERENCES `df_copernicus` (`location_id`);
 
-ALTER TABLE `df_embalses_info` ADD FOREIGN KEY (`location_id`) REFERENCES `df_embalses` (`location_id`);
+ALTER TABLE `df_pixeles_cercanos` ADD FOREIGN KEY (`location_id_rios_canales`) REFERENCES `df_rios_canales` (`location_id`);
 
-ALTER TABLE `df_aemet_info` ADD FOREIGN KEY (`location_id`) REFERENCES `df_aemet` (`location_id`);
+ALTER TABLE `df_pixeles_cercanos` ADD FOREIGN KEY (`location_id_embalses`) REFERENCES `df_embalses` (`location_id`);
+
+ALTER TABLE `df_pixeles_cercanos` ADD FOREIGN KEY (`location_id_aemet`) REFERENCES `df_aemet` (`location_id`);
+
+ALTER TABLE `df_rios_canales_info` ADD FOREIGN KEY (`location_id`) REFERENCES `locations_id` (`location_id`);
+
+ALTER TABLE `df_embalses_info` ADD FOREIGN KEY (`location_id`) REFERENCES `locations_id` (`location_id`);
+
+ALTER TABLE `df_aemet_info` ADD FOREIGN KEY (`location_id`) REFERENCES `locations_id` (`location_id`);

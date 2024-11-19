@@ -1,0 +1,134 @@
+
+Table df_pixeles_cercanos {
+location_id_copernicus        int64
+location_id_embalses        float64
+location_id_aemet           float64
+location_id_rios_canales    float64
+}
+
+
+Table df_copernicus {
+ total_precipitation      float64
+skin_temperature         float64
+evaporation              float64
+runoff                   float64
+snowfall                 float64
+soil_water_l1            float64
+soil_water_l2            float64
+soil_water_l3            float64
+soil_water_l4            float64
+high_vegetation_cover    float64
+low_vegetation_cover     float64
+type_high_vegetation     float64
+type_low_vegetation      float64
+location_id                int64
+date_id                    int64
+}
+
+Table df_embalses {
+quantity_hm3    float64
+location_id       int64
+date_id           int64
+}
+
+
+Table df_embalses_info {
+id_station                int64
+Embalse                  varchar
+CodROEA                   int64
+CodPresaprincipal        varchar
+PresaPrincipal           varchar
+VolUtil_hm3             float64
+CodMunic                  int64
+Municipio                varchar
+CodProv                   int64
+Provincia                varchar
+CodSE                     int64
+SistemadeExplotación     varchar
+Cauce                    varchar
+CodMasaSuperfPHJ22       varchar
+MasaSuperficialPHJ22     varchar
+location_id               int64
+}
+Table df_rios_canales {
+quantity_hm3    float64
+location_id       int64
+date_id           int64
+}
+
+Table df_rios_canales_info {
+id_station                int64
+EstacióndeAforo          varchar
+CodROEA                   int64
+Tipo                     varchar
+CodMunic                  int64
+Municipio                varchar
+CodSE                   float64
+SistemadeExplotación     varchar
+Altitud                  varchar
+location_id               int64
+}
+
+Table df_aemet {
+altitud          int64
+tmed           float64
+prec           float64
+tmin           float64
+tmax           float64
+dir            float64
+velmedia       float64
+racha          float64
+horaracha       varchar
+hrMin          float64
+presMax        float64
+presMin        float64
+sol            float64
+location_id      int64
+date_id          int64
+}
+
+
+Table df_aemet_info {
+provincia       object
+altitud          int64
+indicativo      object
+nombre          object
+indsinop       float64
+location_id      int64
+}
+
+Table df_date {
+date          timestamp
+date_id           int64
+}
+
+Table locations_id {
+latitude       float64
+longitude      float64
+location_id      int64
+Type            object
+}
+
+//Relacionamos fechas
+Ref: df_date.date_id > df_copernicus.date_id
+Ref: df_date.date_id > df_aemet.date_id
+Ref: df_date.date_id > df_rios_canales.date_id
+Ref: df_date.date_id > df_embalses.date_id
+//Relacionamos localizaciones
+
+Ref: df_pixeles_cercanos.location_id_copernicus > locations_id.location_id
+Ref: df_pixeles_cercanos.location_id_rios_canales >locations_id.location_id
+Ref: df_pixeles_cercanos.location_id_embalses > locations_id.location_id
+Ref: df_pixeles_cercanos.location_id_aemet > locations_id.location_id
+
+//Relacionamos locsalizaciones
+Ref: df_pixeles_cercanos.location_id_copernicus > df_copernicus.location_id
+Ref: df_pixeles_cercanos.location_id_rios_canales > df_rios_canales.location_id
+Ref: df_pixeles_cercanos.location_id_embalses > df_embalses.location_id
+Ref: df_pixeles_cercanos.location_id_aemet > df_aemet.location_id
+
+//Relacionamos infos
+Ref: df_rios_canales_info.location_id > locations_id.location_id
+Ref: df_embalses_info.location_id > locations_id.location_id
+Ref: df_aemet_info.location_id > locations_id.location_id
+
