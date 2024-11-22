@@ -44,9 +44,10 @@ def mapRep_coper(pixel):
 
 	# Ejecutar la consulta
 	cursor.execute(query)
-
+	conn.close()
 
 	df_loc = pd.read_sql_query(query, conn)
+
 
 	# Coordenadas base para centrar el mapa
 	map_center = [39.0, -0.5]  # Aproximadamente en la cuenca del Júcar
@@ -107,6 +108,9 @@ def mapRep_coper(pixel):
 
 
 def dataExtract(pixel):
+	conn = sqlite3.connect('BBDD/aguaCHJucar.db')
+
+	cursor = conn.cursor()
 	query = f'''
 	        SELECT 
 	            d.date,
@@ -175,7 +179,7 @@ def dataExtract(pixel):
 
 
 	df_embalses = pd.read_sql_query(query, conn)
-
+	conn.close()
 
 	df_embalses['date'] = pd.to_datetime(df_embalses['date'])
 	df_rios['date'] = pd.to_datetime(df_rios['date'])
@@ -188,7 +192,8 @@ def dataExtract(pixel):
 
 	return df_embalses, df_rios, df_aemet, df_x
 
-def retardAgg_tNatural(df,vars,lags, frec):
+
+def retardAgg_tNat(df,vars,lags, frec):
 	"""
 	Retardos agregados en tiempo natural
 	df = DataFrame
@@ -196,6 +201,8 @@ def retardAgg_tNatural(df,vars,lags, frec):
 	lags = Lista de ints para saber cuántos lags hacer
 	frec = frecuencia temporal de los lags, D = Día, M = Mes, Y = Año(year)
 	"""
+	if 'date' in df.index.names:  # Si 'date' está en el índice
+    	df = df.reset_index(level='date')  # Restablecer 'date' como columna
 	# Crear un índice basado en meses para agrupar por mes
 	df[f'{frec}_start'] = df['date'].dt.to_period(f'{frec}').dt.start_time
 
@@ -206,13 +213,13 @@ def retardAgg_tNatural(df,vars,lags, frec):
 	for var in vars:
 	    for lag in lags:        
 	        # Crear acumulados de los últimos N meses
-	        monthly_agg[f'{var}_sum_last{lag} month'] = monthly_agg[var].rolling(window=lag).sum()
+	        monthly_agg[f'{var}_sum_last{lag}{frec}'] = monthly_agg[var].rolling(window=lag).sum()
 	# Unir los resultados al DataFrame diario
 	df = df.merge(monthly_agg.drop(vars, axis = 1), left_on=f'{frec}_start', right_on=f'{frec}_start', how='left')
 
 	return df
 
-def retardAvg_tNatural(df,vars,lags, frec):
+def retardAvg_tNat(df,vars,lags, frec):
 	"""
 	Retardos promedio en tiempo natural
 	df = DataFrame
@@ -220,6 +227,8 @@ def retardAvg_tNatural(df,vars,lags, frec):
 	lags = Lista de ints para saber cuántos lags hacer
 	frec = frecuencia temporal de los lags, D = Día, M = Mes, Y = Año(year)
 	"""
+	if 'date' in df.index.names:  # Si 'date' está en el índice
+    	df = df.reset_index(level='date')  # Restablecer 'date' como columna
 	# Crear un índice basado en meses para agrupar por mes
 	df[f'{frec}_start'] = df['date'].dt.to_period(f'{frec}').dt.start_time
 
@@ -230,13 +239,171 @@ def retardAvg_tNatural(df,vars,lags, frec):
 	for var in vars:
 	    for lag in lags:        
 	        # Crear acumulados de los últimos N meses
-	        monthly_avg[f'{var}_sum_last{lag} month'] = monthly_avg[var].rolling(window=lag).mean()
+	        monthly_avg[f'{var}_mean_last{lag}{frec}'] = monthly_avg[var].rolling(window=lag).mean()
 	# Unir los resultados al DataFrame diario
 	df = df.merge(monthly_avg.drop(vars, axis = 1), left_on=f'{frec}_start', right_on=f'{frec}_start', how='left')
 
 	return df
 
+def retardAgg_tDin(df,vars,lags, frec):
+	"""
+	Retardos agregados en tiempo dinámico
+	df = DataFrame
+	vars = Variable a desfasar en una lista
+	lags = Lista de ints para saber cuántos lags hacer
+	frec = frecuencia temporal de los lags, D = Día, M = Mes, Y = Año(year)
+	"""
+	if 'date' in df.index.names:  # Si 'date' está en el índice
+    	df = df.reset_index(level='date')  # Restablecer 'date' como columna
+	for var in vars:
+        for lag in lags:
+            # Crear acumulados dinámicos basados en la frecuencia especificada
+            df[f'{var}_sum_last{lag}{frec}'] = df[var].rolling(
+                window=f'{lag}{frec}',  # Ventana de tiempo dinámica
+                min_periods=1,         # Asegurar acumulados incluso con pocos datos
+                on='date'              # Basado en la columna de fecha
+            ).sum()
+		
+	return df
 
+def retardAvg_tDin(df,vars,lags, frec):
+	"""
+	Retardos prmedios en tiempo dinámico
+	df = DataFrame
+	vars = Variable a desfasar en una lista
+	lags = Lista de ints para saber cuántos lags hacer
+	frec = frecuencia temporal de los lags, D = Día, M = Mes, Y = Año(year)
+	"""
+	if 'date' in df.index.names:  # Si 'date' está en el índice
+    	df = df.reset_index(level='date')  # Restablecer 'date' como columna
+	for var in vars:
+        for lag in lags:
+            # Crear acumulados dinámicos basados en la frecuencia especificada
+            df[f'{var}_mean_last{lag}{frec}'] = df[var].rolling(
+                window=f'{lag}{frec}',  # Ventana de tiempo dinámica
+                min_periods=1,         # Asegurar acumulados incluso con pocos datos
+                on='date'              # Basado en la columna de fecha
+            ).mean()
+		
+	return df
+
+
+# Función para calcular la distancia Haversine
+def haversine(lat1, lon1, lat2, lon2):
+    # Convertir de grados a radianes
+    lat1, lon1, lat2, lon2 = map(np.radians, [lat1, lon1, lat2, lon2])
+
+    # Diferencias de latitud y longitud
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+
+    # Fórmula Haversine
+    a = np.sin(dlat / 2)**2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon / 2)**2
+    c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
+
+    # Radio de la Tierra en kilómetros
+    R = 6371.0
+
+    # Calcular la distancia
+    distance = R * c
+    return distance
+
+def pixels_colindantes(pixel, maps = False)
+	conn = sqlite3.connect('BBDD/aguaCHJucar.db')
+
+	cursor = conn.cursor()
+	query = f'''
+	    SELECT 
+            p.location_id_copernicus, 
+            l1.latitude AS latitude_copernicus, 
+            l1.longitude AS longitude_copernicus
+        FROM df_pixeles_cercanos p
+        LEFT JOIN locations_id l1 ON p.location_id_copernicus = l1.location_id
+	'''
+
+
+	# Ejecutar la consulta
+	cursor.execute(query)
+
+
+	# Obtener el DataFrame con las coordenadas
+	df_loc = pd.read_sql_query(query, conn)
+
+	conn.close()
+
+	# Eliminar filas duplicadas en las columnas relevantes (location_id_copernicus, latitude_copernicus, longitude_copernicus)
+	df_loc_unique = df_loc[['location_id_copernicus', 'latitude_copernicus', 'longitude_copernicus']].drop_duplicates()
+
+	# Obtener las coordenadas del location_id_copernicus == 189
+	target_location = df_loc_unique[df_loc_unique['location_id_copernicus'] == pixel]
+	target_lat = target_location['latitude_copernicus'].values[0]
+	target_lon = target_location['longitude_copernicus'].values[0]
+
+	# Calcular la distancia a todos los demás location_id_copernicus
+	df_loc_unique[f'distance_to_{pixel}'] = df_loc_unique.apply(
+	    lambda row: haversine(target_lat, target_lon, row['latitude_copernicus'], row['longitude_copernicus']),
+	    axis=1
+	)
+
+	# Filtrar los location_id_copernicus colindantes 
+	colindantes = df_loc_unique[df_loc_unique[f'distance_to_{pixel}'] < 80]
+
+	if maps == True:
+
+		m = folium.Map(location=[target_lat, target_lon], zoom_start=12)
+
+		# Añadir el marcador para el `location_id_copernicus == pixel`
+		folium.Marker(
+		    location=[target_lat, target_lon],
+		    popup=f'location_id_copernicus == {pixel}',
+		    icon=folium.Icon(color='red')
+		).add_to(m)
+
+		# Añadir marcadores para los puntos colindantes
+		for _, row in colindantes.iterrows():
+		    folium.Marker(
+		        location=[row['latitude_copernicus'], row['longitude_copernicus']],
+		        popup=f'location_id_copernicus == {row["location_id_copernicus"]}, Distancia: {row[f"distance_to_{pixel}"]:.2f} km',
+		        icon=folium.Icon(color='blue')
+		    ).add_to(m)
+		    
+		    # Añadir una línea entre `location_id_copernicus == 189` y el punto colindante
+		    folium.PolyLine(
+		        locations=[(target_lat, target_lon), (row['latitude_copernicus'], row['longitude_copernicus'])],
+		        color='green',
+		        weight=2.5,
+		        opacity=1
+		    ).add_to(m)
+
+		return m, colindantes
+
+	else:
+		colindantes
+
+def extraccion_colindantes(colindantes):
+
+	locations_colindantes  = colindantes['location_id_copernicus'].to_list()
+	locations_str = ', '.join(map(str, locations_colindantes))
+	conn = sqlite3.connect('BBDD/aguaCHJucar.db')
+
+	cursor = conn.cursor()
+	query = f'''
+	        SELECT 
+	            d.date,
+	            c.*
+	            FROM df_copernicus c JOIN df_date d ON d.date_id = c.date_id  WHERE c.location_id IN ({locations_str});
+	        '''
+	# Ejecutar la consulta
+	cursor.execute(query)
+
+
+	df_colindantes_coper = pd.read_sql_query(query, conn)
+	conn.close()
+
+	return df_colindantes_coper
+
+
+#######################
 def regresion(X, y, const=1):
     """
     Perform OLS regression.
