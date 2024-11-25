@@ -57,54 +57,54 @@ def mapRep_coper(pixel):
 
 	# Añadir el cuadrado de la zona de Copernicus (representando un área más grande)
 	for index, row in df_loc.iterrows():
-	    # Longitud y latitud del centro de Copernicus
-	    lat_copernicus = row['latitude_copernicus']
-	    lon_copernicus = row['longitude_copernicus']
+		# Longitud y latitud del centro de Copernicus
+		lat_copernicus = row['latitude_copernicus']
+		lon_copernicus = row['longitude_copernicus']
 
-	    # Definir un lado del cuadrado basado en 0.5 grados
-	    size_lat = 0.5  # 0.5 grados de latitud
-	    size_lon = 0.5 * 111.32 * math.cos(math.radians(lat_copernicus)) / 111.32  # Ajustado por la latitud (en grados)
+		# Definir un lado del cuadrado basado en 0.5 grados
+		size_lat = 0.5  # 0.5 grados de latitud
+		size_lon = 0.5 * 111.32 * math.cos(math.radians(lat_copernicus)) / 111.32  # Ajustado por la latitud (en grados)
 
-	    additional_lon = 5 / (111.32 * math.cos(math.radians(lat_copernicus))) 
-	    # Crear las coordenadas de las esquinas del cuadrado
-	    bounds = [
-	        [lat_copernicus - size_lat / 2, lon_copernicus - size_lon / 2],  # Esquina inferior izquierda
-	        [lat_copernicus + size_lat / 2, lon_copernicus + size_lon / 2 + additional_lon]   # Esquina superior derecha
-	    ]
-	    
-	    # Añadir el cuadrado de Copernicus al mapa
-	    folium.Rectangle(
-	        bounds=bounds,
-	        color='blue',
-	        weight=2,
-	        fill=True,
-	        fill_color='blue',
-	        fill_opacity=0,
-	        popup='Copernicus Area'
-	    ).add_to(m)
+		additional_lon = 5 / (111.32 * math.cos(math.radians(lat_copernicus))) 
+		# Crear las coordenadas de las esquinas del cuadrado
+		bounds = [
+			[lat_copernicus - size_lat / 2, lon_copernicus - size_lon / 2],  # Esquina inferior izquierda
+			[lat_copernicus + size_lat / 2, lon_copernicus + size_lon / 2 + additional_lon]   # Esquina superior derecha
+		]
 
-	    # Añadir marcador para Aemet
-	    folium.Marker(
-	        location=[row['latitude_aemet'], row['longitude_aemet']],
-	        popup=f"Aemet: {row['nombre_aemet']}; estacion {row['location_id_aemet']}",
-	        icon=folium.Icon(color='red')
-	    ).add_to(m)
+		# Añadir el cuadrado de Copernicus al mapa
+		folium.Rectangle(
+			bounds=bounds,
+			color='blue',
+			weight=2,
+			fill=True,
+			fill_color='blue',
+			fill_opacity=0,
+			popup='Copernicus Area'
+		).add_to(m)
 
-	    # Añadir marcador para Ríos Canales
-	    folium.Marker(
-	        location=[row['latitude_rios_canales'], row['longitude_rios_canales']],
-	        popup= f"Ríos Canales: {row['estacion_aforo_rios_canales']}; estacion {row['location_id_rios']}",
-	        icon=folium.Icon(color='purple')
-	    ).add_to(m)
-	    # Añadir marcador para embalses
-	    if df_loc['embalse'][0] != 'No hay embalse':
-	        folium.Marker(
-	            location=[row['latitude_embalses'], row['longitude_embalses']],
-	            popup=f"Embalse: {row['embalse']}; estacion {row['location_id_embalse']}",
-	            icon=folium.Icon(color='orange')
-	        ).add_to(m)
+		# Añadir marcador para Aemet
+		folium.Marker(
+			location=[row['latitude_aemet'], row['longitude_aemet']],
+			popup=f"Aemet: {row['nombre_aemet']}; estacion {row['location_id_aemet']}",
+			icon=folium.Icon(color='red')
+		).add_to(m)
 
-    return m
+		# Añadir marcador para Ríos Canales
+		folium.Marker(
+			location=[row['latitude_rios_canales'], row['longitude_rios_canales']],
+			popup= f"Ríos Canales: {row['estacion_aforo_rios_canales']}; estacion {row['location_id_rios']}",
+			icon=folium.Icon(color='purple')
+		).add_to(m)
+		# Añadir marcador para embalses
+		if df_loc['embalse'][0] != 'No hay embalse':
+			folium.Marker(
+				location=[row['latitude_embalses'], row['longitude_embalses']],
+				popup=f"Embalse: {row['embalse']}; estacion {row['location_id_embalse']}",
+				icon=folium.Icon(color='orange')
+			).add_to(m)
+
+	return m
 
 
 def dataExtract(pixel):
@@ -191,23 +191,25 @@ def dataExtract(pixel):
 	df_x = pd.merge(df_c,df_aemet, on='date', how='inner',suffixes=('_copernicus', '_aemet'))
 
 	return df_embalses, df_rios, df_aemet, df_x
-
+def copiar():
+	print('a')
 
 def retardAgg_tNat(df,vars,lags, frec):
 	"""
 	Retardos agregados en tiempo natural
-	df = DataFrame
+	df = DataFrame	
 	vars = Variable a desfasar en una lista
 	lags = Lista de ints para saber cuántos lags hacer
 	frec = frecuencia temporal de los lags, D = Día, M = Mes, Y = Año(year)
 	"""
-	if 'date' in df.index.names:  # Si 'date' está en el índice
-    	df = df.reset_index(level='date')  # Restablecer 'date' como columna
+	df1 = df.copy()
+	if 'date' in df1.index.names:  # Si 'date' está en el índice
+		df1 = df1.reset_index(level='date')  # Restablecer 'date' como columna
 	# Crear un índice basado en meses para agrupar por mes
-	df[f'{frec}_start'] = df['date'].dt.to_period(f'{frec}').dt.start_time
+	df1[f'{frec}_start'] = df1['date'].dt.to_period(f'{frec}').dt.start_time
 
 	# Agrupación mensual para calcular los valores agregados por mes
-	monthly_agg = df.groupby(f'{frec}_start')[vars].sum().reset_index()
+	monthly_agg = df1.groupby(f'{frec}_start')[vars].sum().reset_index()
 
 	# Iterar sobre las variables y calcular acumulados
 	for var in vars:
@@ -215,9 +217,9 @@ def retardAgg_tNat(df,vars,lags, frec):
 	        # Crear acumulados de los últimos N meses
 	        monthly_agg[f'{var}_sum_last{lag}{frec}'] = monthly_agg[var].rolling(window=lag).sum()
 	# Unir los resultados al DataFrame diario
-	df = df.merge(monthly_agg.drop(vars, axis = 1), left_on=f'{frec}_start', right_on=f'{frec}_start', how='left')
+	df1 = df1.merge(monthly_agg.drop(vars, axis = 1), left_on=f'{frec}_start', right_on=f'{frec}_start', how='left')
 
-	return df
+	return df1
 
 def retardAvg_tNat(df,vars,lags, frec):
 	"""
@@ -227,13 +229,14 @@ def retardAvg_tNat(df,vars,lags, frec):
 	lags = Lista de ints para saber cuántos lags hacer
 	frec = frecuencia temporal de los lags, D = Día, M = Mes, Y = Año(year)
 	"""
-	if 'date' in df.index.names:  # Si 'date' está en el índice
-    	df = df.reset_index(level='date')  # Restablecer 'date' como columna
+	df1 = df.copy()
+	if 'date' in df1.index.names:  # Si 'date' está en el índice
+		df1 = df1.reset_index(level='date')  # Restablecer 'date' como columna
 	# Crear un índice basado en meses para agrupar por mes
-	df[f'{frec}_start'] = df['date'].dt.to_period(f'{frec}').dt.start_time
+	df1[f'{frec}_start'] = df1['date'].dt.to_period(f'{frec}').dt.start_time
 
 	# Agrupación mensual para calcular los valores promedios por mes
-	monthly_avg = df.groupby(f'{frec}_start')[vars].mean().reset_index()
+	monthly_avg = df1.groupby(f'{frec}_start')[vars].mean().reset_index()
 
 	# Iterar sobre las variables y calcular acumulados
 	for var in vars:
@@ -241,9 +244,9 @@ def retardAvg_tNat(df,vars,lags, frec):
 	        # Crear acumulados de los últimos N meses
 	        monthly_avg[f'{var}_mean_last{lag}{frec}'] = monthly_avg[var].rolling(window=lag).mean()
 	# Unir los resultados al DataFrame diario
-	df = df.merge(monthly_avg.drop(vars, axis = 1), left_on=f'{frec}_start', right_on=f'{frec}_start', how='left')
+	df1 = df1.merge(monthly_avg.drop(vars, axis = 1), left_on=f'{frec}_start', right_on=f'{frec}_start', how='left')
 
-	return df
+	return df1
 
 def retardAgg_tDin(df,vars,lags, frec):
 	"""
@@ -253,18 +256,18 @@ def retardAgg_tDin(df,vars,lags, frec):
 	lags = Lista de ints para saber cuántos lags hacer
 	frec = frecuencia temporal de los lags, D = Día, M = Mes, Y = Año(year)
 	"""
-	if 'date' in df.index.names:  # Si 'date' está en el índice
-    	df = df.reset_index(level='date')  # Restablecer 'date' como columna
+	df1 = df.copy()
+	if 'date' in df1.index.names:  # Si 'date' está en el índice
+		df1 = df1.reset_index(level='date')  # Restablecer 'date' como columna
 	for var in vars:
-        for lag in lags:
+		for lag in lags:
             # Crear acumulados dinámicos basados en la frecuencia especificada
-            df[f'{var}_sum_last{lag}{frec}'] = df[var].rolling(
+			df1[f'{var}_sum_last{lag}{frec}'] = df1[var].rolling(
                 window=f'{lag}{frec}',  # Ventana de tiempo dinámica
-                min_periods=1,         # Asegurar acumulados incluso con pocos datos
-                on='date'              # Basado en la columna de fecha
+                min_periods=1         # Asegurar acumulados incluso con pocos datos
             ).sum()
 		
-	return df
+	return df1
 
 def retardAvg_tDin(df,vars,lags, frec):
 	"""
@@ -274,18 +277,18 @@ def retardAvg_tDin(df,vars,lags, frec):
 	lags = Lista de ints para saber cuántos lags hacer
 	frec = frecuencia temporal de los lags, D = Día, M = Mes, Y = Año(year)
 	"""
-	if 'date' in df.index.names:  # Si 'date' está en el índice
-    	df = df.reset_index(level='date')  # Restablecer 'date' como columna
+	df1 = df.copy()
+	if 'date' in df1.index.names:  # Si 'date' está en el índice
+		df1 = df1.reset_index(level='date')  # Restablecer 'date' como columna
 	for var in vars:
-        for lag in lags:
+		for lag in lags:
             # Crear acumulados dinámicos basados en la frecuencia especificada
-            df[f'{var}_mean_last{lag}{frec}'] = df[var].rolling(
+			df1[f'{var}_mean_last{lag}{frec}'] = df1[var].rolling(
                 window=f'{lag}{frec}',  # Ventana de tiempo dinámica
-                min_periods=1,         # Asegurar acumulados incluso con pocos datos
-                on='date'              # Basado en la columna de fecha
+                min_periods=1         # Asegurar acumulados incluso con pocos datos
             ).mean()
 		
-	return df
+	return df1
 
 
 # Función para calcular la distancia Haversine
@@ -308,78 +311,74 @@ def haversine(lat1, lon1, lat2, lon2):
     distance = R * c
     return distance
 
-def pixels_colindantes(pixel, maps = False)
-	conn = sqlite3.connect('BBDD/aguaCHJucar.db')
+def pixels_colindantes(pixel, maps=False):
+    conn = sqlite3.connect('BBDD/aguaCHJucar.db')
 
-	cursor = conn.cursor()
-	query = f'''
-	    SELECT 
+    query = f'''
+        SELECT 
             p.location_id_copernicus, 
             l1.latitude AS latitude_copernicus, 
             l1.longitude AS longitude_copernicus
         FROM df_pixeles_cercanos p
         LEFT JOIN locations_id l1 ON p.location_id_copernicus = l1.location_id
-	'''
+    '''
 
+    # Obtener el DataFrame con las coordenadas
+    df_loc = pd.read_sql_query(query, conn)
+    conn.close()
 
-	# Ejecutar la consulta
-	cursor.execute(query)
+    # Eliminar filas duplicadas en las columnas relevantes
+    df_loc_unique = df_loc[['location_id_copernicus', 'latitude_copernicus', 'longitude_copernicus']].drop_duplicates()
 
+    # Obtener las coordenadas del location_id_copernicus objetivo
+    target_location = df_loc_unique[df_loc_unique['location_id_copernicus'] == pixel]
+    target_lat = target_location['latitude_copernicus'].values[0]
+    target_lon = target_location['longitude_copernicus'].values[0]
 
-	# Obtener el DataFrame con las coordenadas
-	df_loc = pd.read_sql_query(query, conn)
+    # Calcular la distancia a todos los demás location_id_copernicus
+    df_loc_unique[f'distance_to_{pixel}'] = df_loc_unique.apply(
+        lambda row: haversine(
+            (target_lat, target_lon), 
+            (row['latitude_copernicus'], row['longitude_copernicus'])
+        ),
+        axis=1
+    )
 
-	conn.close()
+    # Filtrar los location_id_copernicus colindantes
+    colindantes = df_loc_unique[df_loc_unique[f'distance_to_{pixel}'] < 80]
 
-	# Eliminar filas duplicadas en las columnas relevantes (location_id_copernicus, latitude_copernicus, longitude_copernicus)
-	df_loc_unique = df_loc[['location_id_copernicus', 'latitude_copernicus', 'longitude_copernicus']].drop_duplicates()
+    if maps:
+        m = folium.Map(location=[target_lat, target_lon], zoom_start=12)
 
-	# Obtener las coordenadas del location_id_copernicus == 189
-	target_location = df_loc_unique[df_loc_unique['location_id_copernicus'] == pixel]
-	target_lat = target_location['latitude_copernicus'].values[0]
-	target_lon = target_location['longitude_copernicus'].values[0]
+        # Añadir el marcador para el pixel objetivo
+        folium.Marker(
+            location=[target_lat, target_lon],
+            popup=f'location_id_copernicus == {pixel}',
+            icon=folium.Icon(color='red')
+        ).add_to(m)
 
-	# Calcular la distancia a todos los demás location_id_copernicus
-	df_loc_unique[f'distance_to_{pixel}'] = df_loc_unique.apply(
-	    lambda row: haversine(target_lat, target_lon, row['latitude_copernicus'], row['longitude_copernicus']),
-	    axis=1
-	)
+        # Añadir marcadores y líneas para los puntos colindantes
+        for _, row in colindantes.iterrows():
+            folium.Marker(
+                location=[row['latitude_copernicus'], row['longitude_copernicus']],
+                popup=f'location_id_copernicus == {row["location_id_copernicus"]}, Distancia: {row[f"distance_to_{pixel}"]:.2f} km',
+                icon=folium.Icon(color='blue')
+            ).add_to(m)
+            
+            # Línea entre el pixel objetivo y los puntos colindantes
+            folium.PolyLine(
+                locations=[
+                    (target_lat, target_lon), 
+                    (row['latitude_copernicus'], row['longitude_copernicus'])
+                ],
+                color='green',
+                weight=2.5,
+                opacity=1
+            ).add_to(m)
 
-	# Filtrar los location_id_copernicus colindantes 
-	colindantes = df_loc_unique[df_loc_unique[f'distance_to_{pixel}'] < 80]
+        return m, colindantes
 
-	if maps == True:
-
-		m = folium.Map(location=[target_lat, target_lon], zoom_start=12)
-
-		# Añadir el marcador para el `location_id_copernicus == pixel`
-		folium.Marker(
-		    location=[target_lat, target_lon],
-		    popup=f'location_id_copernicus == {pixel}',
-		    icon=folium.Icon(color='red')
-		).add_to(m)
-
-		# Añadir marcadores para los puntos colindantes
-		for _, row in colindantes.iterrows():
-		    folium.Marker(
-		        location=[row['latitude_copernicus'], row['longitude_copernicus']],
-		        popup=f'location_id_copernicus == {row["location_id_copernicus"]}, Distancia: {row[f"distance_to_{pixel}"]:.2f} km',
-		        icon=folium.Icon(color='blue')
-		    ).add_to(m)
-		    
-		    # Añadir una línea entre `location_id_copernicus == 189` y el punto colindante
-		    folium.PolyLine(
-		        locations=[(target_lat, target_lon), (row['latitude_copernicus'], row['longitude_copernicus'])],
-		        color='green',
-		        weight=2.5,
-		        opacity=1
-		    ).add_to(m)
-
-		return m, colindantes
-
-	else:
-		colindantes
-
+    return colindantes
 def extraccion_colindantes(colindantes):
 
 	locations_colindantes  = colindantes['location_id_copernicus'].to_list()
