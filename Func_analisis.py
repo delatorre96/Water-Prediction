@@ -2,7 +2,12 @@ import pandas as pd
 import math
 import numpy as np
 from statsmodels.tsa.seasonal import seasonal_decompose
-
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+from sklearn.preprocessing import StandardScaler
+import statsmodels.api as sm
+from itertools import combinations
 
 def retardAgg_tNat(df, vars, lags, frec):
     """
@@ -79,7 +84,7 @@ def retardAvg_tNat(df, vars, lags, frec):
     return df1
 
 
-def retardAgg_tDin(df,vars,lags, frec):
+def retardAgg_tDin(df,vars,lags):
 	"""
 	Retardos agregados en tiempo dinámico
 	df = DataFrame
@@ -88,19 +93,19 @@ def retardAgg_tDin(df,vars,lags, frec):
 	frec = frecuencia temporal de los lags, D = Día, M = Mes, Y = Año(year)
 	"""
 	df1 = df.copy()
-	if 'date' in df1.index.names:  # Si 'date' está en el índice
-		df1 = df1.reset_index(level='date')  # Restablecer 'date' como columna
+	#if 'date' in df1.index.names:  # Si 'date' está en el índice
+		#df1 = df1.reset_index(level='date')  # Restablecer 'date' como columna
 	for var in vars:
 		for lag in lags:
             # Crear acumulados dinámicos basados en la frecuencia especificada
-			df1[f'{var}_sum_last{lag}{frec}'] = df1[var].rolling(
-                window=f'{lag}{frec}',  # Ventana de tiempo dinámica
+			df1[f'{var}_sum_last{lag}'] = df1[var].rolling(
+                window=f'{lag}',  # Ventana de tiempo dinámica
                 min_periods=1         # Asegurar acumulados incluso con pocos datos
             ).sum()
 		
 	return df1
 
-def retardAvg_tDin(df,vars,lags, frec):
+def retardAvg_tDin(df,vars,lags):
 	"""
 	Retardos prmedios en tiempo dinámico
 	df = DataFrame
@@ -109,17 +114,69 @@ def retardAvg_tDin(df,vars,lags, frec):
 	frec = frecuencia temporal de los lags, D = Día, M = Mes, Y = Año(year)
 	"""
 	df1 = df.copy()
-	if 'date' in df1.index.names:  # Si 'date' está en el índice
-		df1 = df1.reset_index(level='date')  # Restablecer 'date' como columna
+	#if 'date' in df1.index.names:  # Si 'date' está en el índice
+		#df1 = df1.reset_index()  # Restablecer 'date' como columna
 	for var in vars:
 		for lag in lags:
             # Crear acumulados dinámicos basados en la frecuencia especificada
-			df1[f'{var}_mean_last{lag}{frec}'] = df1[var].rolling(
-                window=f'{lag}{frec}',  # Ventana de tiempo dinámica
+			df1[f'{var}_mean_last{lag}'] = df1[var].rolling(
+                window=f'{lag}',  # Ventana de tiempo dinámica
                 min_periods=1         # Asegurar acumulados incluso con pocos datos
             ).mean()
 		
 	return df1
+
+
+def randomForest_mostImp(df, target):
+    
+    X = df.drop(columns=target)  # Variables predictoras
+    y = df[target]  # Variable objetivo
+    
+    # Dividir los datos en entrenamiento y prueba
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    
+    # Entrenar el modelo de Random Forest (ajustes de velocidad)
+    rf = RandomForestRegressor (
+        n_estimators=100,  # Reducir el número de árboles
+        max_depth=10,  # Limitar la profundidad de los árboles
+        random_state=42, 
+        n_jobs=-1  # Utilizar todos los núcleos del procesador
+    )
+    rf.fit(X_train, y_train)
+    
+    # Predicciones
+    y_pred = rf.predict(X_test)
+    
+    # Obtener las importancias de las características
+    importances = rf.feature_importances_
+    
+    # Crear un DataFrame para visualizar las importancias
+    importance_df = pd.DataFrame({
+        'Feature': X.columns,
+        'Importance': importances
+    })
+    
+    # Ordenar las importancias de mayor a menor
+    importance_df = importance_df.sort_values(by='Importance', ascending=False)
+    
+    # Métricas de calidad del ajuste
+    r2 = r2_score(y_test, y_pred)
+    mse = mean_squared_error(y_test, y_pred)
+    rmse = np.sqrt(mse)
+    mae = mean_absolute_error(y_test, y_pred)
+    
+    # Imprimir las métricas
+    print(f"R^2: {r2:.4f}")
+    print(f"MSE: {mse:.4f}")
+    print(f"RMSE: {rmse:.4f}")
+    print(f"MAE: {mae:.4f}")
+    
+    return importance_df
+
+
+
+
+
 
 
 
@@ -139,11 +196,16 @@ def regresion(X, y, const=1):
     results : RegressionResults
         Results of the regression.
     """
+    
     if const == 1:
         X = sm.add_constant(X)
     model = sm.OLS(y, X)
     results = model.fit()
     return results
+
+
+
+
 
 
 def regression_analysis(df, features, target):
@@ -187,8 +249,7 @@ def regression_analysis(df, features, target):
                 'Features': feature_combination,
                 'R^2': r2,
                 'Conditional Number': number_condition,
-                'Constant Included': False,
-                'modelo': model
+                'Constant Included': False
             })
             
             # Opción 2: Con constante
@@ -208,8 +269,7 @@ def regression_analysis(df, features, target):
                 'Features': feature_combination,
                 'R^2': r2_const,
                 'Conditional Number': number_condition_const,
-                'Constant Included': True,
-                'modelo': model_const
+                'Constant Included': True
             })
 
     # Convertir los resultados a DataFrame

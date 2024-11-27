@@ -157,6 +157,7 @@ def dataExtract(pixel, x = True):
         df_aemet = pd.read_sql_query(query, conn)
         
         df_aemet['date'] = pd.to_datetime(df_aemet['date'])
+        df_aemet = df_aemet.groupby('date').mean().reset_index()
         df_c['date'] = pd.to_datetime(df_c['date'])
         df_c['soil_water'] = df_c['soil_water_l1'] + df_c['soil_water_l2'] + df_c['soil_water_l3'] + df_c['soil_water_l4']
         df_c = df_c.drop(['soil_water_l1', 'soil_water_l2', 'soil_water_l3','soil_water_l4'], axis = 1)
@@ -175,8 +176,11 @@ def create_df(pixel):
     df_rios.drop('location_id',axis = 1,inplace = True)
     df_x.drop('location_id',axis = 1,inplace = True)
     if df_embalses.empty:
+        df_rios = df_rios.groupby('date').mean().reset_index()
         df = pd.merge(df_x, df_rios, on = 'date', how = 'inner')
     else:
+        df_rios = df_rios.groupby('date').mean().reset_index()
+        df_embalses = df_embalses.groupby('date').mean().reset_index()
         df = pd.merge(df_x, df_rios, on = 'date', how = 'inner')
         df = pd.merge(df, df_embalses, on = 'date', how = 'inner')
     df.set_index('date', inplace =True)
