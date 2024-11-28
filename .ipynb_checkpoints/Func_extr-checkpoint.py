@@ -189,9 +189,12 @@ def create_df(pixel, aemet = False):
         df = pd.merge(df_x, df_rios, on = 'date', how = 'inner')
     else:
         df_rios = df_rios.groupby('date').mean().reset_index()
+        df_rios = df_rios.rename(columns = {'quantity_hm3' : 'quantity_hm3_rios'})
         df_embalses = df_embalses.groupby('date').mean().reset_index()
+        df_embalses = df_embalses.rename(columns = {'quantity_hm3' : 'quantity_hm3_embalses'})
         df = pd.merge(df_x, df_rios, on = 'date', how = 'inner')
         df = pd.merge(df, df_embalses, on = 'date', how = 'inner')
+        df['quantity_hm3'] = df['quantity_hm3_rios'] + df['quantity_hm3_embalses']
     df.set_index('date', inplace =True)
     return df
 
