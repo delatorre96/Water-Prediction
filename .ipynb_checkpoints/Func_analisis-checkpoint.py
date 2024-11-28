@@ -2,10 +2,15 @@ import pandas as pd
 import math
 import numpy as np
 from statsmodels.tsa.seasonal import seasonal_decompose
+import statsmodels.api as sm
 from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+from sklearn.ensemble import RandomForestRegressor
+from itertools import combinations
+
+
+
 
 def retardAgg_tNat(df, vars, lags, frec):
     """
@@ -97,7 +102,7 @@ def retardAgg_tDin(df,vars,lags):
 		for lag in lags:
             # Crear acumulados dinámicos basados en la frecuencia especificada
 			df1[f'{var}_sum_last{lag}'] = df1[var].rolling(
-                window=f'{lag}{frec}',  # Ventana de tiempo dinámica
+                window=f'{lag}',  # Ventana de tiempo dinámica
                 min_periods=1         # Asegurar acumulados incluso con pocos datos
             ).sum()
 		
@@ -118,59 +123,111 @@ def retardAvg_tDin(df,vars,lags):
 		for lag in lags:
             # Crear acumulados dinámicos basados en la frecuencia especificada
 			df1[f'{var}_mean_last{lag}'] = df1[var].rolling(
-                window=f'{lag}{frec}',  # Ventana de tiempo dinámica
+                window=f'{lag}',  # Ventana de tiempo dinámica
                 min_periods=1         # Asegurar acumulados incluso con pocos datos
             ).mean()
 		
 	return df1
 
+def apply_pca(df, var, frec, var_threshold=95):
+    """
+    Aplica PCA a las columnas generadas por retardAvg_tNat y retardAgg_tNat
+    para una frecuencia específica, añadiendo el porcentaje de varianza explicada
+    hasta alcanzar el umbral especificado.
+    
+    df: DataFrame procesado.
+    var: Variable base usada en las funciones de retardos (como 'total_precipitation').
+    frec: Frecuencia temporal ('D', 'M', 'Y').
+    var_threshold: Umbral de varianza explicada acumulada (%) para decidir el número de componentes principales.
+    
+    Retorna:
+        - Un DataFrame con las componentes principales.
+    """
+    # Filtrar las columnas relevantes para la frecuencia y la variable
+    cols_to_pca = [
+        col for col in df.columns 
+        if var in col and f'{frec}' in col and ('_sum_' in col or '_mean_' in col)
+    ]
+    
+    if not cols_to_pca:
+        print(f"No hay columnas para aplicar PCA con frecuencia {frec} para la variable '{var}'.")
+        return None
+    
+    # Normalizar las columnas antes de PCA
+    scaler = StandardScaler()
+    data_scaled = scaler.fit_transform(df[cols_to_pca].fillna(0))  # Reemplazar NaN con 0 para evitar problemas
+    
+    # Aplicar PCA sin límite de componentes
+    pca = PCA()
+    pca_components = pca.fit_transform(data_scaled)
+    
+    # Calcular la varianza explicada acumulada
+    explained_variance_ratio = pca.explained_variance_ratio_ * 100  # Convertir a porcentaje
+    cumulative_explained_variance = explained_variance_ratio.cumsum()  # Cálculo acumulado
+    
+    # Determinar el número de componentes que alcanzan el umbral de varianza explicada
+    n_components = (cumulative_explained_variance <= var_threshold).sum() + 1
+    
+    # Aplicar PCA nuevamente con el número de componentes necesario
+    pca = PCA(n_components=n_components)
+    pca_components = pca.fit_transform(data_scaled)
+    
+    # Crear nombres para las componentes principales, incluyendo la variable y frecuencia
+    pca_columns = [
+        f'{var}_PCA_{frec}_comp{i+1}' for i in range(n_components)
+    ]
+    
+    # Crear un nuevo DataFrame con las componentes principales
+    pca_df = pd.DataFrame(pca_components, columns=pca_columns)
+    
+    # Agregar la clave temporal al nuevo DataFrame si existe en el original
+    if 'date' in df.columns:
+        pca_df['date'] = df['date'].values
+    elif 'date' in df.index.names:
+        
+        pca_df['date'] = df.index.get_level_values('date')
+    
+    # Imprimir resultados de la varianza explicada
+    print(f"PCA aplicado para variable '{var}' y frecuencia '{frec}'.")
+    print(f"Varianza explicada acumulada para los {n_components} componentes: {cumulative_explained_variance[n_components-1]}%")
+    
+    return pca_df
 
-def randomForest_mostImp(df, target):
+def process_pca_for_variables(df, variables, frecuencias, var_threshold=90):
+    """
+    Aplica PCA para cada combinación de variable y frecuencia temporal, 
+    y combina los resultados en un único DataFrame.
     
-    X = df.drop(columns=target)  # Variables predictoras
-    y = df[target]  # Variable objetivo
+    Args:
+        df (pd.DataFrame): El DataFrame original.
+        variables (list): Lista de variables base para aplicar PCA.
+        frecuencias (list): Lista de frecuencias temporales ('D', 'M', 'Y').
+        var_threshold (float): Umbral mínimo de varianza explicada acumulada para las componentes principales.
     
-    # Dividir los datos en entrenamiento y prueba
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    Returns:
+        pd.DataFrame: DataFrame con las componentes principales combinadas.
+    """
+    # Crear un diccionario para almacenar los resultados de PCA
+    pca_results = {}
     
-    # Entrenar el modelo de Random Forest (ajustes de velocidad)
-    rf = RandomForestRegressor (
-        n_estimators=100,  # Reducir el número de árboles
-        max_depth=10,  # Limitar la profundidad de los árboles
-        random_state=42, 
-        n_jobs=-1  # Utilizar todos los núcleos del procesador
-    )
-    rf.fit(X_train, y_train)
-    
-    # Predicciones
-    y_pred = rf.predict(X_test)
-    
-    # Obtener las importancias de las características
-    importances = rf.feature_importances_
-    
-    # Crear un DataFrame para visualizar las importancias
-    importance_df = pd.DataFrame({
-        'Feature': X.columns,
-        'Importance': importances
-    })
-    
-    # Ordenar las importancias de mayor a menor
-    importance_df = importance_df.sort_values(by='Importance', ascending=False)
-    
-    # Métricas de calidad del ajuste
-    r2 = r2_score(y_test, y_pred)
-    mse = mean_squared_error(y_test, y_pred)
-    rmse = np.sqrt(mse)
-    mae = mean_absolute_error(y_test, y_pred)
-    
-    # Imprimir las métricas
-    print(f"R^2: {r2:.4f}")
-    print(f"MSE: {mse:.4f}")
-    print(f"RMSE: {rmse:.4f}")
-    print(f"MAE: {mae:.4f}")
-    
-    return importance_df
+    # Aplicar PCA para cada variable y frecuencia
+    for var in variables:
+        for frec in frecuencias:
+            pca_df = apply_pca(df, var=var, frec=frec, var_threshold=var_threshold)
+            if pca_df is not None:
+                # Almacenar en el diccionario
+                pca_results[f'{var}_{frec}'] = pca_df
 
+    # Combinar los resultados usando 'merge' basado en la columna 'date'
+    final_pca_df = pd.DataFrame()
+    for key, pca_df in pca_results.items():
+        if final_pca_df.empty:
+            final_pca_df = pca_df  # Inicializamos con el primer DataFrame
+        else:
+            # Unir por 'date', con 'how="outer"' para mantener todas las fechas
+            final_pca_df = pd.merge(final_pca_df, pca_df, on='date', how='outer')
+    
+    return final_pca_df
 
 
 
@@ -194,6 +251,7 @@ def regresion(X, y, const=1):
     results : RegressionResults
         Results of the regression.
     """
+    
     if const == 1:
         X = sm.add_constant(X)
     model = sm.OLS(y, X)
@@ -246,8 +304,7 @@ def regression_analysis(df, features, target):
                 'Features': feature_combination,
                 'R^2': r2,
                 'Conditional Number': number_condition,
-                'Constant Included': False,
-                'modelo': model
+                'Constant Included': False
             })
             
             # Opción 2: Con constante
@@ -267,8 +324,7 @@ def regression_analysis(df, features, target):
                 'Features': feature_combination,
                 'R^2': r2_const,
                 'Conditional Number': number_condition_const,
-                'Constant Included': True,
-                'modelo': model_const
+                'Constant Included': True
             })
 
     # Convertir los resultados a DataFrame

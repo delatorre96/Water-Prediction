@@ -83,7 +83,7 @@ def extract_infos(pixel):
     return df_info
 
 
-def dataExtract(pixel, x = True):
+def dataExtract(pixel, x = True, merge_x = False):
     conn = sqlite3.connect('BBDD/aguaCHJucar.db')
     
     cursor = conn.cursor()
@@ -155,26 +155,35 @@ def dataExtract(pixel, x = True):
         # Ejecutar la consulta
         cursor.execute(query)
         df_aemet = pd.read_sql_query(query, conn)
+        conn.close()
         
         df_aemet['date'] = pd.to_datetime(df_aemet['date'])
         df_aemet = df_aemet.groupby('date').mean().reset_index()
         df_c['date'] = pd.to_datetime(df_c['date'])
         df_c['soil_water'] = df_c['soil_water_l1'] + df_c['soil_water_l2'] + df_c['soil_water_l3'] + df_c['soil_water_l4']
         df_c = df_c.drop(['soil_water_l1', 'soil_water_l2', 'soil_water_l3','soil_water_l4'], axis = 1)
-        df_x = pd.merge(df_c,df_aemet, on='date', how='inner',suffixes=('_copernicus', '_aemet'))
         df_embalses['date'] = pd.to_datetime(df_embalses['date'])
         df_rios['date'] = pd.to_datetime(df_rios['date'])
-        conn.close()
-        return  df_embalses, df_rios, df_x
+        
+        if merge_x:
+            df_x = pd.merge(df_c,df_aemet, on='date', how='inner',suffixes=('_copernicus', '_aemet'))
+            return df_embalses, df_rios, df_x
+        else:
+            return  df_embalses, df_rios, df_c, df_aemet
     else:
         conn.close()
         return  df_embalses, df_rios
 
-def create_df(pixel):
-    df_embalses, df_rios, df_x = dataExtract(pixel, x = True)
+def create_df(pixel, aemet = False):
+    if aemet:
+        df_embalses, df_rios, df_x = dataExtract(pixel, x = True, merge_x = True)
+    else:
+        df_embalses, df_rios, df_c, df_aemet = dataExtract(pixel, x = True, merge_x = False)
+        df_x = df_c.copy()
+        del df_c
     df_embalses.drop('location_id',axis = 1,inplace = True)
     df_rios.drop('location_id',axis = 1,inplace = True)
-    df_x.drop('location_id',axis = 1,inplace = True)
+    df_aemet.drop('location_id',axis = 1,inplace = True)
     if df_embalses.empty:
         df_rios = df_rios.groupby('date').mean().reset_index()
         df = pd.merge(df_x, df_rios, on = 'date', how = 'inner')
