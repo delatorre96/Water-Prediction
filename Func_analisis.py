@@ -129,7 +129,7 @@ def retardAvg_tDin(df,vars,lags):
 		
 	return df1
 
-def apply_pca(df, var, frec, var_threshold=95):
+def apply_pca(df, var, frec, var_threshold=95, imprimir = False):
     """
     Aplica PCA a las columnas generadas por retardAvg_tNat y retardAgg_tNat
     para una frecuencia específica, añadiendo el porcentaje de varianza explicada
@@ -188,8 +188,9 @@ def apply_pca(df, var, frec, var_threshold=95):
         pca_df['date'] = df.index.get_level_values('date')
     
     # Imprimir resultados de la varianza explicada
-    print(f"PCA aplicado para variable '{var}' y frecuencia '{frec}'.")
-    print(f"Varianza explicada acumulada para los {n_components} componentes: {cumulative_explained_variance[n_components-1]}%")
+    if imprimir:
+        print(f"PCA aplicado para variable '{var}' y frecuencia '{frec}'.")
+        print(f"Varianza explicada acumulada para los {n_components} componentes: {cumulative_explained_variance[n_components-1]}%")
     
     return pca_df
 
