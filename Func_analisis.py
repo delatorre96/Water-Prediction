@@ -38,7 +38,8 @@ def retardAgg_tNat(df, vars, lags, frec):
         for lag in lags:
             # Calcular acumulados
             col_name = f'{var}_sum_last{lag}{frec}'
-            lagged_columns[col_name] = df_agg[var].rolling(window=lag).sum()
+            #lagged_columns[col_name] = df_agg[var].rolling(window=lag, closed='left').sum()
+            lagged_columns[col_name] = df_agg[var].shift(lag)
 
     # Convertir el diccionario a un DataFrame
     lagged_df = pd.concat(lagged_columns, axis=1)
@@ -48,7 +49,6 @@ def retardAgg_tNat(df, vars, lags, frec):
     df1 = df1.merge(lagged_df, on=f'{frec}_start', how='left')
 
     return df1
-
 def retardAvg_tNat(df, vars, lags, frec):
     """
     Retardos promedio en tiempo natural.
@@ -75,7 +75,7 @@ def retardAvg_tNat(df, vars, lags, frec):
         for lag in lags:
             # Calcular acumulados
             col_name = f'{var}_mean_last{lag}{frec}'
-            lagged_columns[col_name] = monthly_avg[var].rolling(window=lag).mean()
+            lagged_columns[col_name] = monthly_avg[var].shift(lag)
 
     # Convertir el diccionario a un DataFrame
     lagged_df = pd.concat(lagged_columns, axis=1)
@@ -102,7 +102,7 @@ def retardAgg_tDin(df,vars,lags):
 		for lag in lags:
             # Crear acumulados dinámicos basados en la frecuencia especificada
 			df1[f'{var}_sum_last{lag}'] = df1[var].rolling(
-                window=f'{lag}',  # Ventana de tiempo dinámica
+                window=lag,  # Ventana de tiempo dinámica
                 min_periods=1         # Asegurar acumulados incluso con pocos datos
             ).sum()
 		
@@ -123,11 +123,18 @@ def retardAvg_tDin(df,vars,lags):
 		for lag in lags:
             # Crear acumulados dinámicos basados en la frecuencia especificada
 			df1[f'{var}_mean_last{lag}'] = df1[var].rolling(
-                window=f'{lag}',  # Ventana de tiempo dinámica
+                window=lag,  # Ventana de tiempo dinámica
                 min_periods=1         # Asegurar acumulados incluso con pocos datos
             ).mean()
 		
 	return df1
+
+
+
+
+
+
+
 
 def apply_pca(df, var, frec, var_threshold=95, imprimir = False):
     """
@@ -230,7 +237,109 @@ def process_pca_for_variables(df, variables, frecuencias, var_threshold=90):
     
     return final_pca_df
 
+def process_pca_custom_components(df, variables, frecuencias, n_components_dict, imprimir=False):
+    """
+    Aplica PCA para cada combinación de variable y frecuencia temporal, con un número de componentes especificado.
+    
+    Args:
+        df (pd.DataFrame): El DataFrame original.
+        variables (list): Lista de variables base para aplicar PCA.
+        frecuencias (list): Lista de frecuencias temporales ('D', 'M', 'Y').
+        n_components_dict (dict): Diccionario donde las claves son combinaciones 'var_frec' y los valores el número de componentes deseados.
+                                  Ejemplo: {'total_precipitation_D': 3, 'evaporation_M': 2}
+        imprimir (bool): Si True, imprime detalles sobre el PCA aplicado.
+    
+    Returns:
+        pd.DataFrame: DataFrame con las componentes principales combinadas.
+    """
+    from sklearn.preprocessing import StandardScaler
+    from sklearn.decomposition import PCA
+    import pandas as pd
 
+    # Crear un diccionario para almacenar los resultados de PCA
+    pca_results = {}
+
+    for var in variables:
+        for frec in frecuencias:
+            # Identificar las columnas relevantes para la variable y frecuencia
+            cols_to_pca = [
+                col for col in df.columns 
+                if var in col and f'{frec}' in col and ('_sum_' in col or '_mean_' in col)
+            ]
+
+            if not cols_to_pca:
+                if imprimir:
+                    print(f"No hay columnas para PCA en '{var}_{frec}'.")
+                continue
+
+            # Normalizar los datos
+            scaler = StandardScaler()
+            data_scaled = scaler.fit_transform(df[cols_to_pca].fillna(0))
+
+            # Determinar la cantidad de componentes para esta variable y frecuencia
+            key = f'{var}_{frec}'
+            n_components = n_components_dict.get(key, None)
+
+            if n_components is None:
+                if imprimir:
+                    print(f"Cantidad de componentes no especificada para '{key}', saltando.")
+                continue
+
+            # Aplicar PCA
+            pca = PCA(n_components=n_components)
+            pca_components = pca.fit_transform(data_scaled)
+
+            # Crear nombres para las componentes principales
+            pca_columns = [f'{var}_PCA_{frec}_comp{i+1}' for i in range(n_components)]
+
+            # Crear DataFrame con las componentes principales
+            pca_df = pd.DataFrame(pca_components, columns=pca_columns)
+
+            # Agregar la clave temporal al nuevo DataFrame si existe en el original
+            if 'date' in df.columns:
+                pca_df['date'] = df['date'].values
+            elif 'date' in df.index.names:
+                pca_df['date'] = df.index.get_level_values('date')
+
+            # Guardar resultados
+            pca_results[key] = pca_df
+
+            # Imprimir información opcional
+            if imprimir:
+                explained_variance = pca.explained_variance_ratio_.sum() * 100
+                print(f"PCA para '{key}': {n_components} componentes principales seleccionadas. Varianza explicada: {explained_variance:.2f}%.")
+
+    # Combinar los resultados en un único DataFrame
+    final_pca_df = pd.DataFrame()
+    for key, pca_df in pca_results.items():
+        if final_pca_df.empty:
+            final_pca_df = pca_df
+        else:
+            final_pca_df = pd.merge(final_pca_df, pca_df, on='date', how='outer')
+
+    return final_pca_df
+
+def extract_n_components(columns):
+    """
+    Convierte una lista de columnas con formato PCA en un diccionario
+    que contiene la cantidad máxima de componentes por variable y frecuencia.
+
+    Parameters:
+        columns (list): Lista de nombres de columnas en formato '<variable>_PCA_<frecuencia>_comp<número>'.
+
+    Returns:
+        dict: Diccionario con la cantidad máxima de componentes por variable y frecuencia.
+    """
+    n_components_dict = {}
+
+    for col in columns:
+        parts = col.split('_PCA_')
+        variable = parts[0]
+        frequency, component = parts[1].split('_comp')
+        key = f"{variable}_{frequency}"
+        n_components_dict[key] = max(n_components_dict.get(key, 0), int(component))
+
+    return n_components_dict
 
 
 
