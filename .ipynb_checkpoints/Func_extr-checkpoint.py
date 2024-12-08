@@ -57,6 +57,7 @@ def extract_infos(pixel):
             -- Usar COALESCE para manejar los valores NULL
             COALESCE(embalses_info.Embalse, 'No hay embalse') AS embalse,
             COALESCE(embalses_info.location_id, 'No hay embalse') AS location_id_embalse,
+            COALESCE(rios_canales_info.id_station, 'No hay rio') AS id_station_rios_canales,
             COALESCE(rios_canales_info.EstacióndeAforo, 'No hay rio') AS estacion_aforo_rios_canales,
             COALESCE(rios_canales_info.location_id, 'No hay rio') AS location_id_rios,
             COALESCE(aemet_info.nombre, 'No hay aemet') AS nombre_aemet,
@@ -187,6 +188,11 @@ def create_df(pixel, aemet = False):
     if df_embalses.empty:
         df_rios = df_rios.groupby('date').mean().reset_index()
         df = pd.merge(df_x, df_rios, on = 'date', how = 'inner')
+    elif df_embalses.empty and df_rios.empty:
+        df_x['quantity_hm3'] = 0
+        df_x = df_x.sort_values('date')
+        df_x.set_index('date', inplace =True)
+        return df_x
     else:
         df_rios = df_rios.groupby('date').mean().reset_index()
         df_rios = df_rios.rename(columns = {'quantity_hm3' : 'quantity_hm3_rios'})
@@ -195,6 +201,7 @@ def create_df(pixel, aemet = False):
         df = pd.merge(df_x, df_rios, on = 'date', how = 'inner')
         df = pd.merge(df, df_embalses, on = 'date', how = 'inner')
         df['quantity_hm3'] = df['quantity_hm3_rios'] + df['quantity_hm3_embalses']
+    df = df.sort_values('date')
     df.set_index('date', inplace =True)
     return df
 

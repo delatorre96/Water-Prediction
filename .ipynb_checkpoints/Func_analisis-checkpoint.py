@@ -129,9 +129,51 @@ def retardAvg_tDin(df,vars,lags):
 		
 	return df1
 
+def creacionRetardos(retardosMax):
+    retardos_dict = {}
 
+    for day in range(retardosMax):
+        retardos_dict[day] = {}
+        dias_iniciales = [1,2,3,4,5,6,7,15,20]
+        dias_retardos = [i+day for i in dias_iniciales]
+        retardos_dict[day]['D'] = dias_retardos
+        meses_iniciales = [1,2,3,4,6,8,9,10,11,12]
+        mes = min(day // 30, len(meses_iniciales))
+        meses_retardos = [i+mes for i in meses_iniciales]
+        retardos_dict[day]['M'] = meses_retardos
+        años_iniciales = [1,2,3,4,5]
+        año = min(day // 365, len(años_iniciales)) 
+        años_retardos = [i+año for i in años_iniciales]
+        retardos_dict[day]['Y'] = años_retardos
 
+    return retardos_dict
 
+def preprocesado(pixel, retardosMax, variables, aemet = False):
+    df = create_df(pixel, aemet = False)
+    ##Retardos tiempo natural
+    retardos_dict = creacionRetardos(retardosMax)
+    
+    day_lags = retardos_dict[retardosMax]['D']
+    month_lags = retardos_dict[retardosMax]['M']
+    year_lags = retardos_dict[retardosMax]['Y']
+    df = retardAvg_tNat(df, vars = variables, lags = day_lags, frec = 'D')
+    df = retardAvg_tNat(df, vars = variables, lags = month_lags, frec = 'M')
+    df = retardAvg_tNat(df, vars = variables, lags = year_lags, frec = 'Y')
+    df = retardAgg_tNat(df, vars = variables, lags = day_lags, frec = 'D')
+    df = retardAgg_tNat(df, vars = variables, lags = month_lags, frec = 'M')
+    df = retardAgg_tNat(df, vars = variables, lags = year_lags, frec = 'Y')
+
+    df = df.sort_values('date').set_index('date')
+    df = df.select_dtypes(exclude=['datetime64'])
+    
+    pca_df = process_pca_for_variables(df = df, variables = variables, frecuencias = ['D', 'M', 'Y'], var_threshold=90)
+    
+    df_PCA_quant = pd.merge(df.reset_index()[['date', 'quantity_hm3']],pca_df, on = 'date', how = 'inner').set_index('date')
+    
+    X = df_PCA_quant.drop(['quantity_hm3'], axis=1)  # Excluir 'date' si no se usa explícitamente
+    y = df_PCA_quant['quantity_hm3']
+    
+    return X,y
 
 
 
