@@ -1,0 +1,108 @@
+digraph G {
+  
+  //rankdir=LR; // Orientación horizontal
+
+   subgraph cluster_user_input {
+    style=filled;
+    color=lightyellow;
+    node [style=filled,color=white, shape=box];
+    "0. Seleccionar días a predecir" [shape=parallelogram];
+    "50 días";
+    "100 días";
+    "300 días";
+    "500 días";
+    "1000 días";
+    "0. Seleccionar días a predecir" -> "50 días";
+    "0. Seleccionar días a predecir" -> "300 días";
+    "0. Seleccionar días a predecir" -> "100 días";
+    "0. Seleccionar días a predecir" -> "500 días";
+    "0. Seleccionar días a predecir" -> "1000 días";
+    label = "Interacción del Usuario";
+  }
+
+  // Subgrafo de la actualización de datos
+  subgraph cluster_data_update {
+    style=filled;
+    color=lightgrey;
+    node [style=filled,color=white, shape=box];
+    "Actualizar Datos Copernicus (Climáticos)";
+    "Actualizar Datos SI Júcar (Hidrológicos)";
+    "Base de Datos Actualizada";
+    "Actualizar Datos Copernicus (Climáticos)" -> "Base de Datos Actualizada";
+    "Actualizar Datos SI Júcar (Hidrológicos)" -> "Base de Datos Actualizada";
+  }
+
+  subgraph cluster_preprocessing {
+    style=filled;
+    color=lightblue;
+    node [style=filled,color=white, shape=box];
+     "Recálculo de 50 retardos";
+ "Recálculo de 100 retardos";
+"Recálculo de 300 retardos";
+ "Recálculo de 500 retardos";
+ "Recálculo de 1000 retardos";
+  "PCA incremental de 50 retardos";
+ "PCA incremental de 100 retardos";
+"PCA incremental de 300 retardos";
+ "PCA incremental de 500 retardos";
+ "PCA incremental de 1000 retardos";
+  "Recálculo de 50 retardos" -> "PCA incremental de 50 retardos";
+ "Recálculo de 100 retardos" -> "PCA incremental de 100 retardos";
+"Recálculo de 300 retardos" -> "PCA incremental de 300 retardos";
+ "Recálculo de 500 retardos" -> "PCA incremental de 500 retardos";
+ "Recálculo de 1000 retardos" -> "PCA incremental de 1000 retardos";
+  }
+
+  subgraph cluster_model_training {
+    style=filled;
+    color=lightgreen;
+    node [style=filled,color=white, shape=box];
+    "Modelo 1 xgb Incremental" [shape=ellipse];
+    "Modelo 2 xgb Incremental" [shape=ellipse];
+    "Modelo 3 xgb Incremental" [shape=ellipse];
+    "Modelo 4 xgb Incremental" [shape=ellipse];
+    "Modelo 5 xgb Incremental" [shape=ellipse];
+  }
+
+  subgraph cluster_output {
+    style=filled;
+    color=lightpink;
+    node [style=filled,color=white, shape=box];
+    "Predicciones de Cantidad de Agua" [shape=parallelogram];
+  }
+
+  // Conexiones principales
+  //"Seleccionar días a predecir" -> "Actualizar Datos Copernicus (Climáticos)";
+  "Base de Datos Actualizada" -> "2. Preprocesamiento";
+  "2. Preprocesamiento" -> "Recálculo de 50 retardos"
+  "2. Preprocesamiento" -> "Recálculo de 100 retardos"
+  "2. Preprocesamiento" -> "Recálculo de 300 retardos"
+  "2. Preprocesamiento" -> "Recálculo de 500 retardos"
+    "2. Preprocesamiento" -> "Recálculo de 1000 retardos"
+"3. Predicción"-> "Modelo 1 xgb Incremental";
+ "3. Predicción"-> "Modelo 2 xgb Incremental";
+ "3. Predicción"-> "Modelo 3 xgb Incremental";
+  "3. Predicción" -> "Modelo 4 xgb Incremental";
+  "3. Predicción" -> "Modelo 5 xgb Incremental";
+   "PCA incremental de 50 retardos"-> "3. Predicción";
+  "PCA incremental de 100 retardos"-> "3. Predicción";
+  "PCA incremental de 300 retardos"-> "3. Predicción";
+  "PCA incremental de 500 retardos"-> "3. Predicción";
+  "PCA incremental de 1000 retardos"-> "3. Predicción";
+  "Modelo 1 xgb Incremental" -> "4. Agregación";
+  "Modelo 2 xgb Incremental" -> "4. Agregación";
+  "Modelo 3 xgb Incremental" -> "4. Agregación";
+  "Modelo 4 xgb Incremental" -> "4. Agregación";
+  "Modelo 5 xgb Incremental" -> "4. Agregación";
+  "4. Agregación" -> "Predicciones de Cantidad de Agua";
+  // Conexiones desde las elecciones del usuario a la caja principal de actualización
+  "50 días" -> "1. Actualización de Datos";
+  "300 días" -> "1. Actualización de Datos";
+  "100 días" -> "1. Actualización de Datos";
+  "500 días" -> "1. Actualización de Datos";
+  "1000 días" -> "1. Actualización de Datos";
+
+  // Conexión interna de la caja de actualización con su contenido
+  "1. Actualización de Datos" -> "Actualizar Datos Copernicus (Climáticos)";
+  "1. Actualización de Datos" -> "Actualizar Datos SI Júcar (Hidrológicos)";
+}
