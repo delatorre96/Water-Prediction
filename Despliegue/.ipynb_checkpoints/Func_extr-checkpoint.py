@@ -54,6 +54,7 @@ def extract_infos(pixel):
             -- Usar COALESCE para manejar los valores NULL
             COALESCE(embalses_info.Embalse, 'No hay embalse') AS embalse,
             COALESCE(embalses_info.location_id, 'No hay embalse') AS location_id_embalse,
+            COALESCE(embalses_info.id_station, 'No hay embalse') AS id_station_embalse,
             COALESCE(rios_canales_info.id_station, 'No hay rio') AS id_station_rios_canales,
             COALESCE(rios_canales_info.EstacióndeAforo, 'No hay rio') AS estacion_aforo_rios_canales,
             COALESCE(rios_canales_info.location_id, 'No hay rio') AS location_id_rios,
@@ -172,7 +173,7 @@ def dataExtract(pixel, x = True, merge_x = False):
         conn.close()
         return  df_embalses, df_rios
 
-def create_df(pixel, aemet = False):
+def create_df(pixel, aemet = False, embalses = False):
     if aemet:
         df_embalses, df_rios, df_x = dataExtract(pixel, x = True, merge_x = True)
     else:
@@ -182,7 +183,7 @@ def create_df(pixel, aemet = False):
     df_embalses.drop('location_id',axis = 1,inplace = True)
     df_rios.drop('location_id',axis = 1,inplace = True)
     df_aemet.drop('location_id',axis = 1,inplace = True)
-    if df_embalses.empty:
+    if embalses not True:
         df_rios = df_rios.groupby('date').mean().reset_index()
         df = pd.merge(df_x, df_rios, on = 'date', how = 'inner')
     elif df_embalses.empty and df_rios.empty:
